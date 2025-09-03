@@ -41,18 +41,28 @@ document.getElementById("generate-gantt").addEventListener("click", () => {
 function renderGantt(containerId, tasks) {
   gantt.clearAll();
   gantt.config.readonly = true;
+  gantt.config.scale_unit = "day";
+  gantt.config.step = 1;
+  gantt.config.date_scale = "%H:%i"; // Mostrar horas y minutos
+  gantt.config.duration_unit = "hour"; // Escalar duración en horas
+  gantt.config.min_column_width = 30;
   gantt.init(containerId);
-  gantt.templates.task_class = function(start, end, task){
-    return "custom-task-" + task.id;
-  };
   gantt.parse({data: tasks, links: []});
 
-  // Añadir colores
+  // Colorear cada tarea y mostrar inicio/fin
   tasks.forEach(task => {
     const elems = document.querySelectorAll(`#${containerId} .gantt_task_line`);
     elems.forEach(elem => {
       if(elem.getAttribute("task_id") == task.id){
         elem.style.backgroundColor = task.color;
+        const label = document.createElement("span");
+        label.style.position = "absolute";
+        label.style.left = "2px";
+        label.style.top = "-15px";
+        label.style.fontSize = "10px";
+        label.style.color = "#000";
+        label.innerHTML = `${formatDate(task.start_date)} - ${formatDate(addHours(task.start_date, task.duration))}`;
+        elem.appendChild(label);
       }
     });
   });
@@ -62,6 +72,18 @@ function addDays(date, days) {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   return result;
+}
+
+function addHours(date, hours) {
+  const result = new Date(date);
+  result.setHours(result.getHours() + hours);
+  return result;
+}
+
+function formatDate(date) {
+  const h = date.getHours().toString().padStart(2,'0');
+  const m = date.getMinutes().toString().padStart(2,'0');
+  return `${h}:${m}`;
 }
 
 // Algoritmos CPU
@@ -75,7 +97,7 @@ function generateFIFO(processes) {
     tasks.push({
       id: i+1,
       text: p.name,
-      start_date: addDays(new Date(), time),
+      start_date: addHours(new Date(), time),
       duration: p.burst,
       progress: 1,
       color: p.color
@@ -98,7 +120,7 @@ function generateSJF(processes) {
     tasks.push({
       id: idCounter++,
       text: p.name,
-      start_date: addDays(new Date(), time),
+      start_date: addHours(new Date(), time),
       duration: p.burst,
       progress: 1,
       color: p.color
@@ -129,7 +151,7 @@ function generateRR(processes, quantum) {
     tasks.push({
       id: idCounter++,
       text: current.name,
-      start_date: addDays(new Date(), time),
+      start_date: addHours(new Date(), time),
       duration: runTime,
       progress: 1,
       color: current.color
