@@ -1,41 +1,142 @@
-body {
-  font-family: Arial, sans-serif;
-  margin: 20px;
-  background-color: #f5f5f5;
+let processCount = 0;
+const colors = ["#FF6B6B", "#6BCB77", "#4D96FF", "#FFD93D", "#845EC2", "#FF9671"];
+
+document.getElementById("add-process").addEventListener("click", () => {
+  processCount++;
+  const div = document.createElement("div");
+  div.className = "process-item";
+  div.id = `process-${processCount}`;
+  div.innerHTML = `
+    <input placeholder="Nombre" class="p-name">
+    <input placeholder="Llegada" type="number" class="p-arrival" min="0">
+    <input placeholder="Ráfaga CPU" type="number" class="p-burst" min="1">
+    <button onclick="removeProcess(${processCount})">X</button>
+  `;
+  document.getElementById("process-list").appendChild(div);
+});
+
+function removeProcess(id) {
+  const elem = document.getElementById(`process-${id}`);
+  elem.remove();
 }
 
-h1, h2 {
-  text-align: center;
-  color: #333;
+document.getElementById("generate-gantt").addEventListener("click", () => {
+  const processes = [];
+  document.querySelectorAll(".process-item").forEach((item, index) => {
+    const name = item.querySelector(".p-name").value;
+    const arrival = parseInt(item.querySelector(".p-arrival").value);
+    const burst = parseInt(item.querySelector(".p-burst").value);
+    if(name && !isNaN(arrival) && !isNaN(burst)) {
+      processes.push({name, arrival, burst, color: colors[index % colors.length]});
+    }
+  });
+
+  const quantum = parseInt(document.getElementById("quantum").value);
+
+  renderGantt("gantt_fifo", generateFIFO(processes));
+  renderGantt("gantt_sjf", generateSJF(processes));
+  renderGantt("gantt_rr", generateRR(processes, quantum));
+});
+
+function renderGantt(containerId, tasks) {
+  gantt.clearAll();
+  gantt.config.readonly = true;
+  gantt.init(containerId);
+  gantt.templates.task_class = function(start, end, task){
+    return "custom-task-" + task.id;
+  };
+  gantt.parse({data: tasks, links: []});
+
+  // Añadir colores
+  tasks.forEach(task => {
+    const elems = document.querySelectorAll(`#${containerId} .gantt_task_line`);
+    elems.forEach(elem => {
+      if(elem.getAttribute("task_id") == task.id){
+        elem.style.backgroundColor = task.color;
+      }
+    });
+  });
 }
 
-.form-container {
-  max-width: 700px;
-  margin: auto;
-  background-color: #fff;
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
 }
 
-button {
-  margin: 5px 0;
-  padding: 8px 12px;
-  cursor: pointer;
+// Algoritmos CPU
+
+function generateFIFO(processes) {
+  processes.sort((a,b) => a.arrival - b.arrival);
+  let time = 0;
+  const tasks = [];
+  processes.forEach((p,i) => {
+    if(time < p.arrival) time = p.arrival;
+    tasks.push({
+      id: i+1,
+      text: p.name,
+      start_date: addDays(new Date(), time),
+      duration: p.burst,
+      progress: 1,
+      color: p.color
+    });
+    time += p.burst;
+  });
+  return tasks;
 }
 
-input {
-  margin-left: 5px;
-  margin-bottom: 5px;
+function generateSJF(processes) {
+  let time = 0;
+  const tasks = [];
+  const remaining = [...processes];
+  let idCounter = 1;
+  while(remaining.length > 0) {
+    const available = remaining.filter(p => p.arrival <= time);
+    if(available.length === 0) { time++; continue; }
+    available.sort((a,b) => a.burst - b.burst);
+    const p = available[0];
+    tasks.push({
+      id: idCounter++,
+      text: p.name,
+      start_date: addDays(new Date(), time),
+      duration: p.burst,
+      progress: 1,
+      color: p.color
+    });
+    time += p.burst;
+    remaining.splice(remaining.indexOf(p),1);
+  }
+  return tasks;
 }
 
-.process-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 5px;
-}
+function generateRR(processes, quantum) {
+  let time = 0;
+  const tasks = [];
+  let queue = processes.map((p,i) => ({...p, remaining: p.burst, id:i+1}));
+  const rrQueue = [];
+  let idCounter = 1;
 
-.gantt-container {
-  max-width: 1000px;
-  margin: 20px auto;
+  while(queue.length > 0 || rrQueue.length > 0) {
+    queue.filter(p => p.arrival <= time).forEach(p => {
+      if(!rrQueue.includes(p)) rrQueue.push(p);
+    });
+    queue = queue.filter(p => p.arrival > time);
+
+    if(rrQueue.length === 0) { time++; continue; }
+
+    const current = rrQueue.shift();
+    const runTime = Math.min(quantum, current.remaining);
+    tasks.push({
+      id: idCounter++,
+      text: current.name,
+      start_date: addDays(new Date(), time),
+      duration: runTime,
+      progress: 1,
+      color: current.color
+    });
+    time += runTime;
+    current.remaining -= runTime;
+    if(current.remaining > 0) rrQueue.push(current);
+  }
+  return tasks;
 }
