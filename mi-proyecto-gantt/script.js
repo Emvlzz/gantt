@@ -1,149 +1,148 @@
-const inputContainer = document.getElementById('input-container');
-const algorithmSelect = document.getElementById('algorithm');
-let ganttChart = null; // gráfico global
+// Inicializar Gantt
+gantt.config.date_format = "%Y-%m-%d";
+gantt.init("gantt_here");
 
-algorithmSelect.addEventListener('change', () => {
-  const algo = algorithmSelect.value;
-  inputContainer.innerHTML = '';
+// Variables
+let processCount = 0;
 
-  let html = '<label for="burstTimes">Tiempos de ráfaga (separados por coma):</label><br>';
-  html += '<input type="text" id="burstTimes" placeholder="Ej: 5,3,8"><br>';
-
-  if (algo === 'rr') {
-    html += '<label for="quantum">Quantum:</label><br>';
-    html += '<input type="number" id="quantum" value="2"><br>';
-  }
-
-  inputContainer.innerHTML = html;
+// Función para agregar un proceso en la interfaz
+document.getElementById("add-process").addEventListener("click", () => {
+    processCount++;
+    const div = document.createElement("div");
+    div.className = "process-item";
+    div.id = `process-${processCount}`;
+    div.innerHTML = `
+        <input placeholder="Nombre" class="p-name">
+        <input placeholder="Llegada" type="number" class="p-arrival" min="0">
+        <input placeholder="Duración" type="number" class="p-burst" min="1">
+        <button onclick="removeProcess(${processCount})">X</button>
+    `;
+    document.getElementById("process-list").appendChild(div);
 });
 
-function generateGantt() {
-  const algo = algorithmSelect.value;
-  const burstInput = document.getElementById('burstTimes').value;
-  const bursts = burstInput.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+function removeProcess(id) {
+    const elem = document.getElementById(`process-${id}`);
+    elem.remove();
+}
 
-  let quantum = 0;
-  if (algo === 'rr') {
-    quantum = parseInt(document.getElementById('quantum').value);
-  }
-
-  let sequence = [];
-
-  if (algo === 'fcfs') {
-    bursts.forEach((bt, i) => {
-      sequence.push({ pid: `P${i+1}`, time: bt });
-    });
-  }
-
-  if (algo === 'sjf') {
-    bursts
-      .map((bt, i) => ({ pid: `P${i+1}`, time: bt }))
-      .sort((a, b) => a.time - b.time)
-      .forEach(p => sequence.push(p));
-  }
-
-  if (algo === 'rr') {
-    let queue = bursts.map((bt, i) => ({ pid: `P${i+1}`, time: bt }));
-    let t = 0;
-
-    while (queue.some(p => p.time > 0)) {
-      for (let i = 0; i < queue.length; i++) {
-        if (queue[i].time > 0) {
-          const used = Math.min(queue[i].time, quantum);
-          sequence.push({ pid: queue[i].pid, time: used });
-          queue[i].time -= used;
-          t += used;
-        }
-      }
+// Mostrar quantum solo si Round Robin
+document.getElementById("algorithm").addEventListener("change", (e) => {
+    if(e.target.value === "RR") {
+        document.getElementById("quantum-container").style.display = "block";
+    } else {
+        document.getElementById("quantum-container").style.display = "none";
     }
-  }
+});
 
-  renderGantt(sequence);
-}
-
-function renderGantt(sequence) {
-  const ctx = document.getElementById('ganttChart').getContext('2d');
-
-  // calcular posiciones acumuladas
-  let currentTime = 0;
-  const data = [];
-  const backgroundColors = [];
-  const labels = [];
-
-  sequence.forEach(p => {
-    data.push({ x: [currentTime, currentTime + p.time], y: p.pid });
-    labels.push(currentTime); // guardar tiempo de inicio
-    currentTime += p.time;
-    backgroundColors.push(getColor(p.pid));
-  });
-  labels.push(currentTime); // tiempo final
-
-  if (ganttChart) {
-    ganttChart.destroy();
-  }
-
-  ganttChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      datasets: [{
-        data: data,
-        backgroundColor: backgroundColors,
-        borderColor: '#333',
-        borderWidth: 1,
-        barPercentage: 0.6
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      scales: {
-        x: {
-          title: { display: true, text: 'Tiempo (ms)' },
-          stacked: true
-        },
-        y: {
-          title: { display: true, text: 'Procesos' },
-          stacked: true
+// Función para generar Gantt
+document.getElementById("generate-gantt").addEventListener("click", () => {
+    const processes = [];
+    document.querySelectorAll(".process-item").forEach(item => {
+        const name = item.querySelector(".p-name").value;
+        const arrival = parseInt(item.querySelector(".p-arrival").value);
+        const burst = parseInt(item.querySelector(".p-burst").value);
+        if(name && !isNaN(arrival) && !isNaN(burst)) {
+            processes.push({name, arrival, burst});
         }
-      },
-      plugins: {
-        legend: { display: false },
-        title: {
-          display: true,
-          text: `Diagrama de Gantt - ${algorithmSelect.value.toUpperCase()}`
-        },
-        datalabels: {
-          anchor: 'end',
-          align: 'end',
-          formatter: function(value, context) {
-            // mostrar tiempo inicial y final
-            const [start, end] = value.x;
-            return `${start} - ${end}`;
-          },
-          color: '#000',
-          font: { weight: 'bold' }
+    });
+
+    const algorithm = document.getElementById("algorithm").value;
+    let tasks = [];
+
+    if(algorithm === "FIFO") tasks = generateFIFO(processes);
+    else if(algorithm === "SJF") tasks = generateSJF(processes);
+    else if(algorithm === "RR") {
+        const quantum = parseInt(document.getElementById("quantum").value);
+        tasks = generateRR(processes, quantum);
+    }
+
+    gantt.clearAll();
+    gantt.parse({data: tasks, links: []});
+});
+
+// Algoritmo FIFO
+function generateFIFO(processes) {
+    processes.sort((a,b) => a.arrival - b.arrival);
+    let time = 0;
+    const tasks = [];
+    processes.forEach((p,i) => {
+        if(time < p.arrival) time = p.arrival;
+        tasks.push({
+            id: i+1,
+            text: p.name,
+            start_date: addDays(new Date(), time),
+            duration: p.burst,
+            progress: 1
+        });
+        time += p.burst;
+    });
+    return tasks;
+}
+
+// Algoritmo SJF
+function generateSJF(processes) {
+    let time = 0;
+    const tasks = [];
+    const remaining = [...processes];
+    let idCounter = 1;
+
+    while(remaining.length > 0) {
+        const available = remaining.filter(p => p.arrival <= time);
+        if(available.length === 0) {
+            time++;
+            continue;
         }
-      }
-    },
-    plugins: [ChartDataLabels]
-  });
+        available.sort((a,b) => a.burst - b.burst);
+        const p = available[0];
+        tasks.push({
+            id: idCounter++,
+            text: p.name,
+            start_date: addDays(new Date(), time),
+            duration: p.burst,
+            progress: 1
+        });
+        time += p.burst;
+        remaining.splice(remaining.indexOf(p),1);
+    }
+    return tasks;
 }
 
-function getColor(pid) {
-  const colors = {
-    P1: '#4caf50',
-    P2: '#2196f3',
-    P3: '#ff9800',
-    P4: '#e91e63',
-    P5: '#9c27b0'
-  };
-  return colors[pid] || '#607d8b';
+// Algoritmo Round Robin
+function generateRR(processes, quantum) {
+    let time = 0;
+    const tasks = [];
+    const queue = processes.map((p,i) => ({...p, remaining: p.burst, id:i+1}));
+    const rrQueue = [];
+    let idCounter = 1;
+
+    while(queue.length > 0 || rrQueue.length > 0) {
+        queue.filter(p => p.arrival <= time).forEach(p => {
+            if(!rrQueue.includes(p)) rrQueue.push(p);
+        });
+        queue = queue.filter(p => p.arrival > time);
+
+        if(rrQueue.length === 0) { time++; continue; }
+
+        const current = rrQueue.shift();
+        const runTime = Math.min(quantum, current.remaining);
+        tasks.push({
+            id: idCounter++,
+            text: current.name,
+            start_date: addDays(new Date(), time),
+            duration: runTime,
+            progress: 1
+        });
+        time += runTime;
+        current.remaining -= runTime;
+        if(current.remaining > 0) rrQueue.push(current);
+    }
+
+    return tasks;
 }
 
-function downloadImage() {
-  html2canvas(document.getElementById("ganttChart")).then(canvas => {
-    const link = document.createElement('a');
-    link.download = 'diagrama_gantt.png';
-    link.href = canvas.toDataURL();
-    link.click();
-  });
+// Función para sumar días a la fecha (necesario para Gantt)
+function addDays(date, days) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
 }
