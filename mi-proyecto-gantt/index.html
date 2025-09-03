@@ -1,38 +1,36 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planificación de Procesos - Gantt</title>
-    <link rel="stylesheet" href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css">
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CPU Scheduling - Gantt Visual</title>
+  <link rel="stylesheet" href="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Planificación de Procesos</h1>
+  <h1>Planificación CPU - Comparación de Algoritmos</h1>
 
-    <div class="form-container">
-        <h2>Ingresar procesos</h2>
-        <div id="process-list"></div>
-        <button id="add-process">Agregar Proceso</button>
+  <div class="form-container">
+    <h2>Ingresar procesos</h2>
+    <div id="process-list"></div>
+    <button id="add-process">Agregar Proceso</button>
 
-        <h2>Seleccionar algoritmo</h2>
-        <select id="algorithm">
-            <option value="FIFO">FIFO</option>
-            <option value="SJF">SJF</option>
-            <option value="RR">Round Robin</option>
-        </select>
+    <h2>Quantum (solo Round Robin)</h2>
+    <input type="number" id="quantum" value="2" min="1">
 
-        <div id="quantum-container" style="display:none;">
-            <label>Quantum (Round Robin):</label>
-            <input type="number" id="quantum" value="2" min="1">
-        </div>
+    <button id="generate-gantt">Generar Gantt</button>
+  </div>
 
-        <button id="generate-gantt">Generar Gantt</button>
-    </div>
+  <div class="gantt-container">
+    <h2>FIFO</h2>
+    <div id="gantt_fifo" style="width:100%; height:200px;"></div>
+    <h2>SJF</h2>
+    <div id="gantt_sjf" style="width:100%; height:200px;"></div>
+    <h2>Round Robin</h2>
+    <div id="gantt_rr" style="width:100%; height:200px;"></div>
+  </div>
 
-    <div id="gantt_here" style="width:100%; height:500px; margin-top:20px;"></div>
-
-    <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
-    <script src="script.js"></script>
+  <script src="https://cdn.dhtmlx.com/gantt/edge/dhtmlxgantt.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
