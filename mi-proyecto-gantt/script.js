@@ -1,5 +1,6 @@
 const inputContainer = document.getElementById('input-container');
 const algorithmSelect = document.getElementById('algorithm');
+let ganttChart = null; // gráfico global
 
 algorithmSelect.addEventListener('change', () => {
   const algo = algorithmSelect.value;
@@ -19,7 +20,7 @@ algorithmSelect.addEventListener('change', () => {
 function generateGantt() {
   const algo = algorithmSelect.value;
   const burstInput = document.getElementById('burstTimes').value;
-  const bursts = burstInput.split(',').map(n => parseInt(n.trim()));
+  const bursts = burstInput.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
 
   let quantum = 0;
   if (algo === 'rr') {
@@ -43,7 +44,6 @@ function generateGantt() {
 
   if (algo === 'rr') {
     let queue = bursts.map((bt, i) => ({ pid: `P${i+1}`, time: bt }));
-    let timeLeft = [...bursts];
     let t = 0;
 
     while (queue.some(p => p.time > 0)) {
@@ -62,15 +62,69 @@ function generateGantt() {
 }
 
 function renderGantt(sequence) {
-  const container = document.getElementById('gantt-container');
-  container.innerHTML = '';
+  const ctx = document.getElementById('ganttChart').getContext('2d');
+
+  // calcular posiciones acumuladas
+  let currentTime = 0;
+  const data = [];
+  const backgroundColors = [];
+  const labels = [];
+
   sequence.forEach(p => {
-    const div = document.createElement('div');
-    div.className = 'bar';
-    div.style.width = `${p.time * 40}px`;
-    div.style.backgroundColor = getColor(p.pid);
-    div.textContent = p.pid;
-    container.appendChild(div);
+    data.push({ x: [currentTime, currentTime + p.time], y: p.pid });
+    labels.push(currentTime); // guardar tiempo de inicio
+    currentTime += p.time;
+    backgroundColors.push(getColor(p.pid));
+  });
+  labels.push(currentTime); // tiempo final
+
+  if (ganttChart) {
+    ganttChart.destroy();
+  }
+
+  ganttChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      datasets: [{
+        data: data,
+        backgroundColor: backgroundColors,
+        borderColor: '#333',
+        borderWidth: 1,
+        barPercentage: 0.6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      scales: {
+        x: {
+          title: { display: true, text: 'Tiempo (ms)' },
+          stacked: true
+        },
+        y: {
+          title: { display: true, text: 'Procesos' },
+          stacked: true
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: `Diagrama de Gantt - ${algorithmSelect.value.toUpperCase()}`
+        },
+        datalabels: {
+          anchor: 'end',
+          align: 'end',
+          formatter: function(value, context) {
+            // mostrar tiempo inicial y final
+            const [start, end] = value.x;
+            return `${start} - ${end}`;
+          },
+          color: '#000',
+          font: { weight: 'bold' }
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
   });
 }
 
@@ -86,7 +140,7 @@ function getColor(pid) {
 }
 
 function downloadImage() {
-  html2canvas(document.getElementById("gantt-container")).then(canvas => {
+  html2canvas(document.getElementById("ganttChart")).then(canvas => {
     const link = document.createElement('a');
     link.download = 'diagrama_gantt.png';
     link.href = canvas.toDataURL();
