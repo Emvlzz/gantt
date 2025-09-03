@@ -1,25 +1,17 @@
 body {
-  font-family: sans-serif;
-  margin: 2em;
-  background: #f9f9f9;
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f5f5f5;
 }
 
 h1 {
-  margin-bottom: 1em;
+    text-align: center;
+    color: #333;
 }
 
-button {
-  margin-top: 1em;
-  margin-right: 10px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  background: #2196f3;
-  color: white;
-  font-weight: bold;
-}
-
-button:hover {
-  background: #1976d2;
+/* Estilo opcional para el contenedor del Gantt */
+#gantt_here {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
 }
