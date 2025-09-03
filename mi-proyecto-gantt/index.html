@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Generador de Diagrama Gantt</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Librería para capturar el div como imagen -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <h1>Generador de Diagrama de Gantt</h1>
+
+  <label for="algorithm">Selecciona un algoritmo:</label>
+  <select id="algorithm">
+    <option value="fcfs">FCFS</option>
+    <option value="sjf">SJF</option>
+    <option value="rr">Round Robin</option>
+  </select>
+
+  <div id="input-container"></div>
+
+  <button onclick="generateGantt()">Generar Diagrama</button>
+  <button onclick="downloadImage()">Guardar como imagen</button>
+
+  <div id="gantt-container"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
